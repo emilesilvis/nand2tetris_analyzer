@@ -1,6 +1,7 @@
 import sys
 import os
 from tokenizer import Tokenizer
+from parser import Parser
 
 def main():
     if len(sys.argv) != 2:
@@ -12,8 +13,8 @@ def main():
     if os.path.isfile(input_path):
         jack_file_contents = open(input_path, 'r').read()
         tokenizer = Tokenizer(jack_file_contents)
-        for token in tokenizer.tokens:
-            print(tokenizer.next_token())
+        parser = Parser(tokenizer)
+        print(parser.parse_class())
 
     elif os.path.isdir(input_path):
         print("directory")

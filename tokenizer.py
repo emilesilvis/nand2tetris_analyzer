@@ -22,8 +22,12 @@ class Tokenizer:
         self.cursor = 0
 
     def next_token(self):
-        token = {"token_type": self._token_type(self.tokens[self.cursor]), "token_value": self.tokens[self.cursor]};
+        token = self.peek(0)
         self.cursor += 1
+        return token
+    
+    def peek(self, ahead):
+        token = {"type": self._token_type(self.tokens[self.cursor + ahead]), "value": self.tokens[self.cursor + ahead].strip('"')};
         return token
 
     def _tokens(self, source):
@@ -39,7 +43,7 @@ class Tokenizer:
             part = part.strip()
             if part:
                 if (part[0] == "\"" and part[-1] == "\""):
-                    tokens.append(part.strip('"'))
+                    tokens.append(part)
                 else:
                     [tokens.append(word) for word in part.split()]
 
@@ -50,7 +54,7 @@ class Tokenizer:
             return KEYWORD
         elif (string in SYMBOLS):
             return SYMBOL
-        elif (string[0] == "\"" or string[-1] == "\"" ):
+        elif (string.startswith('"') and string.endswith('"')):
             return STRING_CONSTANT
         elif (string[0].isnumeric()):
             return INTEGER_CONSTANT
