@@ -39,7 +39,7 @@ class Tokenizer:
             part = part.strip()
             if part:
                 if (part[0] == "\"" and part[-1] == "\""):
-                    tokens.append(part)
+                    tokens.append(part.strip('"'))
                 else:
                     [tokens.append(word) for word in part.split()]
 
