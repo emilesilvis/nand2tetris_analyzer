@@ -150,19 +150,16 @@ class Parser:
 
     def parse_subroutine_call(self, document):
         if self.tokenizer.peek(1)["value"] == "[":
-            # This is actually array access, not a subroutine call
             self._process(document, "identifier")
             self._process(document, "symbol", "[")
             self.parse_expression(document)
             self._process(document, "symbol", "]")
         elif self.tokenizer.peek(1)["value"] == "(":
-            # Direct function call: functionName(arguments)
             self._process(document, "identifier")
             self._process(document, "symbol", "(")
             self.parse_expression_list(document)
             self._process(document, "symbol", ")")
         elif self.tokenizer.peek(1)["value"] == ".":
-            # Method call: object.method(arguments)
             self._process(document, "identifier")
             self._process(document, "symbol", ".")
             self._process(document, "identifier")
