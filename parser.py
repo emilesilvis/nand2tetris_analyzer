@@ -22,17 +22,24 @@ class Parser:
     def parse_class_variable_declaration(self, document):
         class_variable_declaration_element = ET.SubElement(document, "classVarDec")
         self._process(class_variable_declaration_element, "keyword", ["static", "field"])
-        self.parse_type(class_variable_declaration_element)
+        self.parse_type_and_variables(class_variable_declaration_element)
         self._process(class_variable_declaration_element, "symbol", ";")
 
-    def parse_type(self, document):
-        while self.tokenizer.peek(0)["value"] != ";":
-            if self.tokenizer.peek(0)["type"] == "keyword":
-                self._process(document, "keyword", ["int", "char", "boolean"])
-            else:
-                self._process(document, "identifier")
-            if self.tokenizer.peek(0)["value"] == ",":
-                self._process(document, "symbol", ",")
+    def parse_type_and_variables(self, document):
+        """Parse: type varName (',' varName)*"""
+        # Parse the type first
+        if self.tokenizer.peek(0)["type"] == "keyword":
+            self._process(document, "keyword", ["int", "char", "boolean"])
+        else:
+            self._process(document, "identifier")  # className
+        
+        # Parse first variable name
+        self._process(document, "identifier")
+        
+        # Parse additional variables: (',' varName)*
+        while self.tokenizer.peek(0)["value"] == ",":
+            self._process(document, "symbol", ",")
+            self._process(document, "identifier")
             
     def parse_subroutine_declaration(self, document):
         subroutine_declaration_element = ET.SubElement(document, "subroutineDec")
@@ -40,7 +47,7 @@ class Parser:
         if self.tokenizer.peek(0)["value"] == "void":
             self._process(subroutine_declaration_element, "keyword", ["void"])
         else:
-            pass
+            self.parse_single_type(subroutine_declaration_element)
         self.parse_subroutine_name(subroutine_declaration_element)
         self._process(subroutine_declaration_element, "symbol", "(")
         self.parse_parameter_list(subroutine_declaration_element)
@@ -51,12 +58,29 @@ class Parser:
         self._process(document, "identifier")
 
     def parse_parameter_list(self, document):
-        pass
-    
+        parameter_list_element = ET.SubElement(document, "parameterList")
+        parameter_list_element.text = "\n"
+        
+        if self.tokenizer.peek(0)["value"] != ")":
+            self.parse_single_type(parameter_list_element)
+            self._process(parameter_list_element, "identifier") 
+            
+            while self.tokenizer.peek(0)["value"] == ",":
+                self._process(parameter_list_element, "symbol", ",")
+                self.parse_single_type(parameter_list_element)
+                self._process(parameter_list_element, "identifier") 
+   
+    def parse_single_type(self, document):
+        current_token = self.tokenizer.peek(0)
+        
+        if current_token["value"] in ("int", "char", "boolean"):
+            self._process(document, "keyword", current_token["value"])
+        elif current_token["type"] == "identifier":
+            self._process(document, "identifier")
+
     def parse_subroutine_body(self, document):
         subroutine_body_element = ET.SubElement(document, "subroutineBody")
         self._process(subroutine_body_element, "symbol", "{")
-        print(self.tokenizer.peek(0)["value"])
         while self.tokenizer.peek(0)["value"] == "var":
             self.parse_variable_declaration(subroutine_body_element)
         self.parse_statements(subroutine_body_element)
@@ -65,7 +89,7 @@ class Parser:
     def parse_variable_declaration(self, document):
         variable_declaration_element = ET.SubElement(document, "varDec")
         self._process(variable_declaration_element, "keyword", "var")
-        self.parse_type(variable_declaration_element)
+        self.parse_type_and_variables(variable_declaration_element)
         self._process(variable_declaration_element, "symbol", ";")
 
     # STATEMENTS
@@ -76,33 +100,50 @@ class Parser:
             if self.tokenizer.peek(0)["value"] == "let":
                 let_statement = ET.SubElement(statements_element, "letStatement")
                 self._process(let_statement, "keyword", "let")
-                self._process(let_statement, "identifier")
-                # TODO: Handle optional expressions
+                if self.tokenizer.peek(1)["value"] == "[":
+                    self._process(let_statement, "identifier")
+                    self._process(let_statement, "symbol", "[")
+                    self.parse_expression(let_statement)
+                    self._process(let_statement, "symbol", "]")
+                else:
+                    self._process(let_statement, "identifier")
                 self._process(let_statement, "symbol", "=")
-                self.parse_expression_list(let_statement)
+                self.parse_expression(let_statement)
                 self._process(let_statement, "symbol", ";")
             elif self.tokenizer.peek(0)["value"] == "if":
-                # print("if")
-                pass
+                if_statement = ET.SubElement(statements_element, "ifStatement")
+                self._process(if_statement, "keyword", "if")
+                self._process(if_statement, "symbol", "(")
+                self.parse_expression(if_statement)
+                self._process(if_statement, "symbol", ")")
+                self._process(if_statement, "symbol", "{")
+                self.parse_statements(if_statement)
+                self._process(if_statement, "symbol", "}")
+
+                if self.tokenizer.peek(0)["value"] == "else":
+                    self._process(if_statement, "keyword", "else")
+                    self._process(if_statement, "symbol", "{")
+                    self.parse_statements(if_statement)
+                    self._process(if_statement, "symbol", "}")
+
             elif self.tokenizer.peek(0)["value"] == "while":
                 print("while")
                 pass
             elif self.tokenizer.peek(0)["value"] == "do":
-                print("do")
                 do_statement = ET.SubElement(statements_element, "doStatement")
                 self._process(do_statement, "keyword", "do")
                 self.parse_subroutine_call(do_statement)
                 self._process(do_statement, "symbol", ";")
             elif self.tokenizer.peek(0)["value"] == "return":
-                print("return")
                 return_statement = ET.SubElement(statements_element, "returnStatement")
                 self._process(return_statement, "keyword", "return")
+                if self.tokenizer.peek(0)["value"] != ";":
+                    self.parse_expression(return_statement)
                 self._process(return_statement, "symbol", ";")
 
     # EXPRESSIONS
 
     def parse_subroutine_call(self, document):
-        print('boo')
         if self.tokenizer.peek(1)["value"] == "[":
             pass
         elif self.tokenizer.peek(1)["value"] == "(":
@@ -116,15 +157,49 @@ class Parser:
             self._process(document, "symbol", ")")
     
     def parse_expression_list(self, document):
-        while self.tokenizer.peek(0)["value"] != ")":
-            if self.tokenizer.peek(0)["value"] == ",":
-                self._process(document, "symbol", ",")
-            if self.tokenizer.peek(0)["type"] in ("stringConstant", "integerConstant"):
-                self._process(document, self.tokenizer.peek(0)["type"], self.tokenizer.peek(0)["value"])
-            elif self.tokenizer.peek(0)["type"] == "identifier" and self.tokenizer.peek(1)["value"] in ("."):
-                self.parse_subroutine_call(document)
-            else:
-                return
+        expression_list_element = ET.SubElement(document, "expressionList")
+        expression_list_element.text = "\n" 
+        
+        if self.tokenizer.peek(0)["value"] != ")":
+            self.parse_expression(expression_list_element)
+            
+            while self.tokenizer.peek(0)["value"] == ",":
+                self._process(expression_list_element, "symbol", ",")
+                self.parse_expression(expression_list_element)
+
+    def parse_expression(self, document):
+        expression_element = ET.SubElement(document, "expression")
+        
+        self.parse_term(expression_element)
+        
+        while self.tokenizer.peek(0)["value"] in ("+", "-", "*", "/", "&", "|", "<", ">", "="):
+            self._process(expression_element, "symbol", self.tokenizer.peek(0)["value"])
+            self.parse_term(expression_element)
+
+    def parse_term(self, document):
+        term_element = ET.SubElement(document, "term")
+        
+        if self.tokenizer.peek(0)["type"] in ("stringConstant", "integerConstant"):
+            self._process(term_element, self.tokenizer.peek(0)["type"], self.tokenizer.peek(0)["value"])
+        elif self.tokenizer.peek(0)["type"] == "identifier":
+            if self.tokenizer.peek(1)["value"] == "[":  
+                self._process(term_element, "identifier")
+                self._process(term_element, "symbol", "[")
+                self.parse_expression(term_element)  
+                self._process(term_element, "symbol", "]")
+            elif self.tokenizer.peek(1)["value"] == ".":  
+                self.parse_subroutine_call(term_element)
+            else:  
+                self._process(term_element, "identifier")
+        elif self.tokenizer.peek(0)["value"] in ("true", "false", "null", "this"):
+            self._process(term_element, "keyword", self.tokenizer.peek(0)["value"])
+        elif self.tokenizer.peek(0)["value"] == "(":  
+            self._process(term_element, "symbol", "(")
+            self.parse_expression(term_element)
+            self._process(term_element, "symbol", ")")
+        elif self.tokenizer.peek(0)["value"] in ("-", "~"):  
+            self._process(term_element, "symbol", self.tokenizer.peek(0)["value"])
+            self.parse_term(term_element)
 
     # PRIVATE
 
@@ -141,4 +216,4 @@ class Parser:
 
     def _add_xml(self, document, token):
         element = ET.SubElement(document, token["type"])
-        element.text = token["value"]
+        element.text = " " + token["value"] + " "
