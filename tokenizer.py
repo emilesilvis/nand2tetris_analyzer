@@ -32,7 +32,7 @@ class Tokenizer:
 
     def _tokens(self, source):
         single_line_comments = r'//.*$'
-        multi_line_comments = r'/\*.*?\*/'
+        multi_line_comments = r'/\*[^*]*\*+(?:[^/*][^*]*\*+)*/'
         text_comments_removed = re.sub(single_line_comments + '|' + multi_line_comments, "", source, flags=re.MULTILINE)
         newlines_removed = text_comments_removed.replace('\n', ' ')
         split_pattern = r'([{}()\[\].,;+\-*/&|<>=~])'
