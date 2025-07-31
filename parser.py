@@ -217,10 +217,10 @@ class Parser:
     def _process(self, document, expected_symbol_type=None, expected_symbol_values=None):
         token = self.tokenizer.next_token()
         if expected_symbol_type and token["type"] != expected_symbol_type:
-            raise SyntaxError(f"Expected {expected_symbol_type}, got {token["type"]}")
+            raise SyntaxError(f"Expected {expected_symbol_type}, got {token['type']}")
         if token["type"] != "identifier":
             if expected_symbol_values and not (token["value"] in expected_symbol_values):
-                raise SyntaxError(f"Expected {expected_symbol_values}, got {token["value"]}")
+                raise SyntaxError(f"Expected {expected_symbol_values}, got {token['value']}")
         
         self._add_xml(document, token)
 
