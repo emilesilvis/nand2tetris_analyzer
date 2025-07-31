@@ -17,6 +17,7 @@ class Parser:
             self.parse_subroutine_declaration(document)
         self._process(document, "symbol", "}")
 
+        ET.indent(document, space="  ")
         return ET.tostring(document, encoding='unicode')
 
     def parse_class_variable_declaration(self, document):
@@ -119,16 +120,20 @@ class Parser:
                 self._process(if_statement, "symbol", "{")
                 self.parse_statements(if_statement)
                 self._process(if_statement, "symbol", "}")
-
                 if self.tokenizer.peek(0)["value"] == "else":
                     self._process(if_statement, "keyword", "else")
                     self._process(if_statement, "symbol", "{")
                     self.parse_statements(if_statement)
                     self._process(if_statement, "symbol", "}")
-
             elif self.tokenizer.peek(0)["value"] == "while":
-                print("while")
-                pass
+                while_statement = ET.SubElement(statements_element, "whileStatement")
+                self._process(while_statement, "keyword", "while")
+                self._process(while_statement, "symbol", "(")
+                self.parse_expression(while_statement)
+                self._process(while_statement, "symbol", ")")
+                self._process(while_statement, "symbol", "{")
+                self.parse_statements(while_statement)
+                self._process(while_statement, "symbol", "}")
             elif self.tokenizer.peek(0)["value"] == "do":
                 do_statement = ET.SubElement(statements_element, "doStatement")
                 self._process(do_statement, "keyword", "do")
