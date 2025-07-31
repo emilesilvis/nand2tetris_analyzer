@@ -210,7 +210,6 @@ class Parser:
 
     def _process(self, document, expected_symbol_type=None, expected_symbol_values=None):
         token = self.tokenizer.next_token()
-        print(token) #DEBUG
         if expected_symbol_type and token["type"] != expected_symbol_type:
             raise SyntaxError(f"Expected {expected_symbol_type}, got {token["type"]}")
         if token["type"] != "identifier":
