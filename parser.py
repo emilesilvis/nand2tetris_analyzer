@@ -17,7 +17,7 @@ class Parser:
             self.parse_subroutine_declaration(document)
         self._process(document, "symbol", "}")
 
-        ET.indent(document, space="  ")
+        self._indent_xml(document)
         return ET.tostring(document, encoding='unicode')
 
     def parse_class_variable_declaration(self, document):
@@ -227,3 +227,19 @@ class Parser:
     def _add_xml(self, document, token):
         element = ET.SubElement(document, token["type"])
         element.text = " " + token["value"] + " "
+
+    def _indent_xml(self, elem, level=0):
+        """Indent XML for pretty printing - compatible with older Python versions"""
+        i = "\n" + level * "  "
+        if len(elem):
+            if not elem.text or not elem.text.strip():
+                elem.text = i + "  "
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+            for child in elem:
+                self._indent_xml(child, level + 1)
+            if not elem.tail or not elem.tail.strip():
+                elem.tail = i
+        else:
+            if level and (not elem.tail or not elem.tail.strip()):
+                elem.tail = i
