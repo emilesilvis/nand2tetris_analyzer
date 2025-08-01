@@ -1,4 +1,4 @@
-import xml.etree.ElementTree as ET
+from parse_tree_node import ParseTreeNode
 
 class Parser:
     def __init__(self, tokenizer):
@@ -7,214 +7,225 @@ class Parser:
     # PROGRAM STRUCTURE 
 
     def parse_class(self):
-        document = ET.Element("class")
-        self._process(document, "keyword", ["class"])
-        self._process(document, "identifier")
-        self._process(document, "symbol", "{")
+        class_node = ParseTreeNode("class", None)
+        self._process(class_node, "keyword", ["class"])
+        self._process(class_node, "identifier")
+        self._process(class_node, "symbol", "{")
         while self.tokenizer.peek(0)["value"] in ("static", "field"):
-            self.parse_class_variable_declaration(document)
+            self.parse_class_variable_declaration(class_node)
         while self.tokenizer.peek(0)["value"]  in ("constructor", "function", "method"):
-            self.parse_subroutine_declaration(document)
-        self._process(document, "symbol", "}")
+            self.parse_subroutine_declaration(class_node)
+        self._process(class_node, "symbol", "}")
 
-        self._indent_xml(document)
-        return ET.tostring(document, encoding='unicode')
+        return class_node
 
-    def parse_class_variable_declaration(self, document):
-        class_variable_declaration_element = ET.SubElement(document, "classVarDec")
-        self._process(class_variable_declaration_element, "keyword", ["static", "field"])
-        self.parse_type_and_variables(class_variable_declaration_element)
-        self._process(class_variable_declaration_element, "symbol", ";")
+    def parse_class_variable_declaration(self, parent_node):
+        class_var_dec_node = ParseTreeNode("classVarDec", None)
+        parent_node.add_child(class_var_dec_node)
+        self._process(class_var_dec_node, "keyword", ["static", "field"])
+        self.parse_type_and_variables(class_var_dec_node)
+        self._process(class_var_dec_node, "symbol", ";")
 
-    def parse_type_and_variables(self, document):
+    def parse_type_and_variables(self, parent_node):
         """Parse: type varName (',' varName)*"""
         # Parse the type first
         if self.tokenizer.peek(0)["type"] == "keyword":
-            self._process(document, "keyword", ["int", "char", "boolean"])
+            self._process(parent_node, "keyword", ["int", "char", "boolean"])
         else:
-            self._process(document, "identifier")  # className
+            self._process(parent_node, "identifier")  # className
         
         # Parse first variable name
-        self._process(document, "identifier")
+        self._process(parent_node, "identifier")
         
         # Parse additional variables: (',' varName)*
         while self.tokenizer.peek(0)["value"] == ",":
-            self._process(document, "symbol", ",")
-            self._process(document, "identifier")
+            self._process(parent_node, "symbol", ",")
+            self._process(parent_node, "identifier")
             
-    def parse_subroutine_declaration(self, document):
-        subroutine_declaration_element = ET.SubElement(document, "subroutineDec")
-        self._process(subroutine_declaration_element, "keyword", ["constructor", "function", "method"])
+    def parse_subroutine_declaration(self, parent_node):
+        subroutine_dec_node = ParseTreeNode("subroutineDec", None)
+        parent_node.add_child(subroutine_dec_node)
+        self._process(subroutine_dec_node, "keyword", ["constructor", "function", "method"])
         if self.tokenizer.peek(0)["value"] == "void":
-            self._process(subroutine_declaration_element, "keyword", ["void"])
+            self._process(subroutine_dec_node, "keyword", ["void"])
         else:
-            self.parse_single_type(subroutine_declaration_element)
-        self.parse_subroutine_name(subroutine_declaration_element)
-        self._process(subroutine_declaration_element, "symbol", "(")
-        self.parse_parameter_list(subroutine_declaration_element)
-        self._process(subroutine_declaration_element, "symbol", ")")
-        self.parse_subroutine_body(subroutine_declaration_element)
+            self.parse_single_type(subroutine_dec_node)
+        self.parse_subroutine_name(subroutine_dec_node)
+        self._process(subroutine_dec_node, "symbol", "(")
+        self.parse_parameter_list(subroutine_dec_node)
+        self._process(subroutine_dec_node, "symbol", ")")
+        self.parse_subroutine_body(subroutine_dec_node)
 
-    def parse_subroutine_name(self, document):
-        self._process(document, "identifier")
+    def parse_subroutine_name(self, parent_node):
+        self._process(parent_node, "identifier")
 
-    def parse_parameter_list(self, document):
-        parameter_list_element = ET.SubElement(document, "parameterList")
-        parameter_list_element.text = "\n"
+    def parse_parameter_list(self, parent_node):
+        parameter_list_node = ParseTreeNode("parameterList", None)
+        parent_node.add_child(parameter_list_node)
         
         if self.tokenizer.peek(0)["value"] != ")":
-            self.parse_single_type(parameter_list_element)
-            self._process(parameter_list_element, "identifier") 
+            self.parse_single_type(parameter_list_node)
+            self._process(parameter_list_node, "identifier") 
             
             while self.tokenizer.peek(0)["value"] == ",":
-                self._process(parameter_list_element, "symbol", ",")
-                self.parse_single_type(parameter_list_element)
-                self._process(parameter_list_element, "identifier") 
+                self._process(parameter_list_node, "symbol", ",")
+                self.parse_single_type(parameter_list_node)
+                self._process(parameter_list_node, "identifier") 
    
-    def parse_single_type(self, document):
+    def parse_single_type(self, parent_node):
         current_token = self.tokenizer.peek(0)
         
         if current_token["value"] in ("int", "char", "boolean"):
-            self._process(document, "keyword", current_token["value"])
+            self._process(parent_node, "keyword", current_token["value"])
         elif current_token["type"] == "identifier":
-            self._process(document, "identifier")
+            self._process(parent_node, "identifier")
 
-    def parse_subroutine_body(self, document):
-        subroutine_body_element = ET.SubElement(document, "subroutineBody")
-        self._process(subroutine_body_element, "symbol", "{")
+    def parse_subroutine_body(self, parent_node):
+        subroutine_body_node = ParseTreeNode("subroutineBody", None)
+        parent_node.add_child(subroutine_body_node)
+        self._process(subroutine_body_node, "symbol", "{")
         while self.tokenizer.peek(0)["value"] == "var":
-            self.parse_variable_declaration(subroutine_body_element)
-        self.parse_statements(subroutine_body_element)
-        self._process(subroutine_body_element, "symbol", "}")
+            self.parse_variable_declaration(subroutine_body_node)
+        self.parse_statements(subroutine_body_node)
+        self._process(subroutine_body_node, "symbol", "}")
 
-    def parse_variable_declaration(self, document):
-        variable_declaration_element = ET.SubElement(document, "varDec")
-        self._process(variable_declaration_element, "keyword", "var")
-        self.parse_type_and_variables(variable_declaration_element)
-        self._process(variable_declaration_element, "symbol", ";")
+    def parse_variable_declaration(self, parent_node):
+        var_dec_node = ParseTreeNode("varDec", None)
+        parent_node.add_child(var_dec_node)
+        self._process(var_dec_node, "keyword", "var")
+        self.parse_type_and_variables(var_dec_node)
+        self._process(var_dec_node, "symbol", ";")
 
     # STATEMENTS
 
-    def parse_statements(self, document):
-        statements_element = ET.SubElement(document, "statements")
+    def parse_statements(self, parent_node):
+        statements_node = ParseTreeNode("statements", None)
+        parent_node.add_child(statements_node)
         while self.tokenizer.peek(0)["value"] != "}":
             if self.tokenizer.peek(0)["value"] == "let":
-                let_statement = ET.SubElement(statements_element, "letStatement")
-                self._process(let_statement, "keyword", "let")
+                let_statement_node = ParseTreeNode("letStatement", None)
+                statements_node.add_child(let_statement_node)
+                self._process(let_statement_node, "keyword", "let")
                 if self.tokenizer.peek(1)["value"] == "[":
-                    self._process(let_statement, "identifier")
-                    self._process(let_statement, "symbol", "[")
-                    self.parse_expression(let_statement)
-                    self._process(let_statement, "symbol", "]")
+                    self._process(let_statement_node, "identifier")
+                    self._process(let_statement_node, "symbol", "[")
+                    self.parse_expression(let_statement_node)
+                    self._process(let_statement_node, "symbol", "]")
                 else:
-                    self._process(let_statement, "identifier")
-                self._process(let_statement, "symbol", "=")
-                self.parse_expression(let_statement)
-                self._process(let_statement, "symbol", ";")
+                    self._process(let_statement_node, "identifier")
+                self._process(let_statement_node, "symbol", "=")
+                self.parse_expression(let_statement_node)
+                self._process(let_statement_node, "symbol", ";")
             elif self.tokenizer.peek(0)["value"] == "if":
-                if_statement = ET.SubElement(statements_element, "ifStatement")
-                self._process(if_statement, "keyword", "if")
-                self._process(if_statement, "symbol", "(")
-                self.parse_expression(if_statement)
-                self._process(if_statement, "symbol", ")")
-                self._process(if_statement, "symbol", "{")
-                self.parse_statements(if_statement)
-                self._process(if_statement, "symbol", "}")
+                if_statement_node = ParseTreeNode("ifStatement", None)
+                statements_node.add_child(if_statement_node)
+                self._process(if_statement_node, "keyword", "if")
+                self._process(if_statement_node, "symbol", "(")
+                self.parse_expression(if_statement_node)
+                self._process(if_statement_node, "symbol", ")")
+                self._process(if_statement_node, "symbol", "{")
+                self.parse_statements(if_statement_node)
+                self._process(if_statement_node, "symbol", "}")
                 if self.tokenizer.peek(0)["value"] == "else":
-                    self._process(if_statement, "keyword", "else")
-                    self._process(if_statement, "symbol", "{")
-                    self.parse_statements(if_statement)
-                    self._process(if_statement, "symbol", "}")
+                    self._process(if_statement_node, "keyword", "else")
+                    self._process(if_statement_node, "symbol", "{")
+                    self.parse_statements(if_statement_node)
+                    self._process(if_statement_node, "symbol", "}")
             elif self.tokenizer.peek(0)["value"] == "while":
-                while_statement = ET.SubElement(statements_element, "whileStatement")
-                self._process(while_statement, "keyword", "while")
-                self._process(while_statement, "symbol", "(")
-                self.parse_expression(while_statement)
-                self._process(while_statement, "symbol", ")")
-                self._process(while_statement, "symbol", "{")
-                self.parse_statements(while_statement)
-                self._process(while_statement, "symbol", "}")
+                while_statement_node = ParseTreeNode("whileStatement", None)
+                statements_node.add_child(while_statement_node)
+                self._process(while_statement_node, "keyword", "while")
+                self._process(while_statement_node, "symbol", "(")
+                self.parse_expression(while_statement_node)
+                self._process(while_statement_node, "symbol", ")")
+                self._process(while_statement_node, "symbol", "{")
+                self.parse_statements(while_statement_node)
+                self._process(while_statement_node, "symbol", "}")
             elif self.tokenizer.peek(0)["value"] == "do":
-                do_statement = ET.SubElement(statements_element, "doStatement")
-                self._process(do_statement, "keyword", "do")
-                self.parse_subroutine_call(do_statement)
-                self._process(do_statement, "symbol", ";")
+                do_statement_node = ParseTreeNode("doStatement", None)
+                statements_node.add_child(do_statement_node)
+                self._process(do_statement_node, "keyword", "do")
+                self.parse_subroutine_call(do_statement_node)
+                self._process(do_statement_node, "symbol", ";")
             elif self.tokenizer.peek(0)["value"] == "return":
-                return_statement = ET.SubElement(statements_element, "returnStatement")
-                self._process(return_statement, "keyword", "return")
+                return_statement_node = ParseTreeNode("returnStatement", None)
+                statements_node.add_child(return_statement_node)
+                self._process(return_statement_node, "keyword", "return")
                 if self.tokenizer.peek(0)["value"] != ";":
-                    self.parse_expression(return_statement)
-                self._process(return_statement, "symbol", ";")
+                    self.parse_expression(return_statement_node)
+                self._process(return_statement_node, "symbol", ";")
 
     # EXPRESSIONS
 
-    def parse_subroutine_call(self, document):
+    def parse_subroutine_call(self, parent_node):
         if self.tokenizer.peek(1)["value"] == "[":
-            self._process(document, "identifier")
-            self._process(document, "symbol", "[")
-            self.parse_expression(document)
-            self._process(document, "symbol", "]")
+            self._process(parent_node, "identifier")
+            self._process(parent_node, "symbol", "[")
+            self.parse_expression(parent_node)
+            self._process(parent_node, "symbol", "]")
         elif self.tokenizer.peek(1)["value"] == "(":
-            self._process(document, "identifier")
-            self._process(document, "symbol", "(")
-            self.parse_expression_list(document)
-            self._process(document, "symbol", ")")
+            self._process(parent_node, "identifier")
+            self._process(parent_node, "symbol", "(")
+            self.parse_expression_list(parent_node)
+            self._process(parent_node, "symbol", ")")
         elif self.tokenizer.peek(1)["value"] == ".":
-            self._process(document, "identifier")
-            self._process(document, "symbol", ".")
-            self._process(document, "identifier")
-            self._process(document, "symbol", "(")
-            self.parse_expression_list(document)
-            self._process(document, "symbol", ")")
+            self._process(parent_node, "identifier")
+            self._process(parent_node, "symbol", ".")
+            self._process(parent_node, "identifier")
+            self._process(parent_node, "symbol", "(")
+            self.parse_expression_list(parent_node)
+            self._process(parent_node, "symbol", ")")
     
-    def parse_expression_list(self, document):
-        expression_list_element = ET.SubElement(document, "expressionList")
-        expression_list_element.text = "\n" 
+    def parse_expression_list(self, parent_node):
+        expression_list_node = ParseTreeNode("expressionList", None)
+        parent_node.add_child(expression_list_node)
         
         if self.tokenizer.peek(0)["value"] != ")":
-            self.parse_expression(expression_list_element)
+            self.parse_expression(expression_list_node)
             
             while self.tokenizer.peek(0)["value"] == ",":
-                self._process(expression_list_element, "symbol", ",")
-                self.parse_expression(expression_list_element)
+                self._process(expression_list_node, "symbol", ",")
+                self.parse_expression(expression_list_node)
 
-    def parse_expression(self, document):
-        expression_element = ET.SubElement(document, "expression")
+    def parse_expression(self, parent_node):
+        expression_node = ParseTreeNode("expression", None)
+        parent_node.add_child(expression_node)
         
-        self.parse_term(expression_element)
+        self.parse_term(expression_node)
         
         while self.tokenizer.peek(0)["value"] in ("+", "-", "*", "/", "&", "|", "<", ">", "="):
-            self._process(expression_element, "symbol", self.tokenizer.peek(0)["value"])
-            self.parse_term(expression_element)
+            self._process(expression_node, "symbol", self.tokenizer.peek(0)["value"])
+            self.parse_term(expression_node)
 
-    def parse_term(self, document):
-        term_element = ET.SubElement(document, "term")
+    def parse_term(self, parent_node):
+        term_node = ParseTreeNode("term", None)
+        parent_node.add_child(term_node)
         
         if self.tokenizer.peek(0)["type"] in ("stringConstant", "integerConstant"):
-            self._process(term_element, self.tokenizer.peek(0)["type"], self.tokenizer.peek(0)["value"])
+            self._process(term_node, self.tokenizer.peek(0)["type"], self.tokenizer.peek(0)["value"])
         elif self.tokenizer.peek(0)["type"] == "identifier":
             if self.tokenizer.peek(1)["value"] == "[":  
-                self._process(term_element, "identifier")
-                self._process(term_element, "symbol", "[")
-                self.parse_expression(term_element)  
-                self._process(term_element, "symbol", "]")
+                self._process(term_node, "identifier")
+                self._process(term_node, "symbol", "[")
+                self.parse_expression(term_node)  
+                self._process(term_node, "symbol", "]")
             elif self.tokenizer.peek(1)["value"] == ".":  
-                self.parse_subroutine_call(term_element)
+                self.parse_subroutine_call(term_node)
             else:  
-                self._process(term_element, "identifier")
+                self._process(term_node, "identifier")
         elif self.tokenizer.peek(0)["value"] in ("true", "false", "null", "this"):
-            self._process(term_element, "keyword", self.tokenizer.peek(0)["value"])
+            self._process(term_node, "keyword", self.tokenizer.peek(0)["value"])
         elif self.tokenizer.peek(0)["value"] == "(":  
-            self._process(term_element, "symbol", "(")
-            self.parse_expression(term_element)
-            self._process(term_element, "symbol", ")")
+            self._process(term_node, "symbol", "(")
+            self.parse_expression(term_node)
+            self._process(term_node, "symbol", ")")
         elif self.tokenizer.peek(0)["value"] in ("-", "~"):  
-            self._process(term_element, "symbol", self.tokenizer.peek(0)["value"])
-            self.parse_term(term_element)
+            self._process(term_node, "symbol", self.tokenizer.peek(0)["value"])
+            self.parse_term(term_node)
 
     # PRIVATE
 
-    def _process(self, document, expected_symbol_type=None, expected_symbol_values=None):
+    def _process(self, parent_node, expected_symbol_type=None, expected_symbol_values=None):
         token = self.tokenizer.next_token()
         if expected_symbol_type and token["type"] != expected_symbol_type:
             raise SyntaxError(f"Expected {expected_symbol_type}, got {token['type']}")
@@ -222,24 +233,8 @@ class Parser:
             if expected_symbol_values and not (token["value"] in expected_symbol_values):
                 raise SyntaxError(f"Expected {expected_symbol_values}, got {token['value']}")
         
-        self._add_xml(document, token)
+        self._add_token_node(parent_node, token)
 
-    def _add_xml(self, document, token):
-        element = ET.SubElement(document, token["type"])
-        element.text = " " + token["value"] + " "
-
-    def _indent_xml(self, elem, level=0):
-        """Indent XML for pretty printing - compatible with older Python versions"""
-        i = "\n" + level * "  "
-        if len(elem):
-            if not elem.text or not elem.text.strip():
-                elem.text = i + "  "
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-            for child in elem:
-                self._indent_xml(child, level + 1)
-            if not elem.tail or not elem.tail.strip():
-                elem.tail = i
-        else:
-            if level and (not elem.tail or not elem.tail.strip()):
-                elem.tail = i
+    def _add_token_node(self, parent_node, token):
+        token_node = ParseTreeNode(token["type"], token["value"])
+        parent_node.add_child(token_node)

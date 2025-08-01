@@ -1,7 +1,43 @@
 import sys
 import os
+import xml.etree.ElementTree as ET
 from tokenizer import Tokenizer
 from parser import Parser
+
+def parse_tree_to_xml(parse_tree_node):
+    element = ET.Element(parse_tree_node.type)
+    
+    if parse_tree_node.value is not None and not parse_tree_node.children:
+        element.text = " " + str(parse_tree_node.value) + " "
+    elif not parse_tree_node.children:
+        element.text = "\n" # To handle empty non-terminal nodes
+    
+    # Add children recursively
+    for child in parse_tree_node.children:
+        child_element = parse_tree_to_xml(child)
+        element.append(child_element)
+    
+    return element
+
+def parse_tree_to_xml_string(parse_tree_node):
+    xml_element = parse_tree_to_xml(parse_tree_node)
+    _indent_xml(xml_element)
+    return ET.tostring(xml_element, encoding='unicode')
+
+def _indent_xml(elem, level=0):
+    i = "\n" + level * "  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for child in elem:
+            _indent_xml(child, level + 1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
 
 def process_jack_file(jack_file_path):
     with open(jack_file_path, 'r') as f:
@@ -9,7 +45,8 @@ def process_jack_file(jack_file_path):
     
     tokenizer = Tokenizer(jack_file_contents)
     parser = Parser(tokenizer)
-    xml_output = parser.parse_class()
+    parse_tree_root = parser.parse_class()
+    xml_output = parse_tree_to_xml_string(parse_tree_root)
     
     xml_file_path = jack_file_path.replace('.jack', '.xml')
     
