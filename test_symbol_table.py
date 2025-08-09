@@ -21,7 +21,7 @@ assert parser.symbol_table.class_symbols == {
 print("Subroutine symbols:")
 print(parser.symbol_table.subroutine_symbols)
 assert parser.symbol_table.subroutine_symbols == {
-    "aname": ('String', 'argument', 0), 'apunctuation': ('String', 'argument', 1), 'punctuation': ('String', 'local', 0)
+    'this': ('Hello', 'argument', 0), 'apunctuation': ('String', 'argument', 1), 'punctuation': ('String', 'local', 0)
 }
  
 print("Indices:")
