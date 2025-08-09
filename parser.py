@@ -9,7 +9,7 @@ class Parser:
     # PROGRAM STRUCTURE 
 
     def parse_class(self):
-        self.symbol_table.new_class()
+        # Initialize class symbols (no new_class() method needed)
         class_node = ParseTreeNode("class", None)
         self._process(class_node, "keyword", ["class"])
 
@@ -53,7 +53,10 @@ class Parser:
         # Parse first variable name
         if var_type and var_kind:
             var_name = self.tokenizer.peek(0)["value"]
-            self.symbol_table.add(var_name, var_type, var_kind)
+            if var_kind in ("static", "field"):
+                self.symbol_table.add_class_symbol(var_name, var_type, var_kind)
+            else:
+                self.symbol_table.add_subroutine_symbol(var_name, var_type, var_kind)
         self._process(parent_node, "identifier")
         
         # Parse additional variables: (',' varName)*
@@ -61,26 +64,32 @@ class Parser:
             self._process(parent_node, "symbol", ",")
             if var_type and var_kind:
                 var_name = self.tokenizer.peek(0)["value"]
-                self.symbol_table.add(var_name, var_type, var_kind)
+                if var_kind in ("static", "field"):
+                    self.symbol_table.add_class_symbol(var_name, var_type, var_kind)
+                else:
+                    self.symbol_table.add_subroutine_symbol(var_name, var_type, var_kind)
             self._process(parent_node, "identifier")
             
     def parse_subroutine_declaration(self, parent_node, class_name):
-        self.symbol_table.new_subroutine()
-
         subroutine_dec_node = ParseTreeNode("subroutineDec", None)
         parent_node.add_child(subroutine_dec_node)
         
         subroutine_type = self.tokenizer.peek(0)["value"]
         self._process(subroutine_dec_node, "keyword", ["constructor", "function", "method"])
 
-        if subroutine_type == "method":
-            self.symbol_table.add("this", class_name, "arg")
-
         if self.tokenizer.peek(0)["value"] == "void":
             self._process(subroutine_dec_node, "keyword", ["void"])
         else:
             self.parse_single_type(subroutine_dec_node)
+        
+        # Capture subroutine name and initialize subroutine in symbol table
+        subroutine_name = self.tokenizer.peek(0)["value"]
+        self.symbol_table.add_subroutine(subroutine_name)
         self.parse_subroutine_name(subroutine_dec_node)
+        
+        # Add 'this' parameter for methods
+        if subroutine_type == "method":
+            self.symbol_table.add_subroutine_symbol("this", class_name, "arg")
         self._process(subroutine_dec_node, "symbol", "(")
         self.parse_parameter_list(subroutine_dec_node)
         self._process(subroutine_dec_node, "symbol", ")")
@@ -105,7 +114,7 @@ class Parser:
             param_name = self.tokenizer.peek(0)["value"]
             self._process(parameter_list_node, "identifier")
             
-            self.symbol_table.add(param_name, param_type, "arg")
+            self.symbol_table.add_subroutine_symbol(param_name, param_type, "arg")
             
             while self.tokenizer.peek(0)["value"] == ",":
                 self._process(parameter_list_node, "symbol", ",")
@@ -121,7 +130,7 @@ class Parser:
 
                 self._process(parameter_list_node, "identifier")
 
-                self.symbol_table.add(param_name, param_type, "arg")
+                self.symbol_table.add_subroutine_symbol(param_name, param_type, "arg")
    
     def parse_single_type(self, parent_node):
         current_token = self.tokenizer.peek(0)
