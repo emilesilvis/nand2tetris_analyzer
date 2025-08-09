@@ -1,8 +1,10 @@
 from parse_tree_node import ParseTreeNode
+from symbol_table import SymbolTable
 
 class Parser:
     def __init__(self, tokenizer):
         self.tokenizer = tokenizer
+        self.symbol_table = SymbolTable()
 
     # PROGRAM STRUCTURE 
 
@@ -22,12 +24,23 @@ class Parser:
     def parse_class_variable_declaration(self, parent_node):
         class_var_dec_node = ParseTreeNode("classVarDec", None)
         parent_node.add_child(class_var_dec_node)
+
+        # Caputre and process kind
+        var_kind = self.tokenizer.peek(0)["value"]
         self._process(class_var_dec_node, "keyword", ["static", "field"])
-        self.parse_type_and_variables(class_var_dec_node)
+
+        # Capture type
+        token_type = self.tokenizer.peek(0)
+        if token_type["type"] == "keyword":
+            var_type = token_type["value"]  # int, char, boolean
+        else:
+            var_type = token_type["value"]  # className
+
+        # Process type and variables with captured symbol information
+        self.parse_type_and_variables(class_var_dec_node, var_type, var_kind)
         self._process(class_var_dec_node, "symbol", ";")
 
-    def parse_type_and_variables(self, parent_node):
-        """Parse: type varName (',' varName)*"""
+    def parse_type_and_variables(self, parent_node, var_type=None, var_kind=None):
         # Parse the type first
         if self.tokenizer.peek(0)["type"] == "keyword":
             self._process(parent_node, "keyword", ["int", "char", "boolean"])
@@ -35,11 +48,17 @@ class Parser:
             self._process(parent_node, "identifier")  # className
         
         # Parse first variable name
+        if var_type and var_kind:
+            var_name = self.tokenizer.peek(0)["value"]
+            self.symbol_table.add(var_name, var_type, var_kind)
         self._process(parent_node, "identifier")
         
         # Parse additional variables: (',' varName)*
         while self.tokenizer.peek(0)["value"] == ",":
             self._process(parent_node, "symbol", ",")
+            if var_type and var_kind:
+                var_name = self.tokenizer.peek(0)["value"]
+                self.symbol_table.add(var_name, var_type, var_kind)
             self._process(parent_node, "identifier")
             
     def parse_subroutine_declaration(self, parent_node):
@@ -64,13 +83,34 @@ class Parser:
         parent_node.add_child(parameter_list_node)
         
         if self.tokenizer.peek(0)["value"] != ")":
+            token_type = self.tokenizer.peek(0)
+            if token_type["type"] == "keyword":
+                param_type = token_type["value"]  # int, char, boolean
+            else:
+                param_type = token_type["value"]  # className
+
             self.parse_single_type(parameter_list_node)
-            self._process(parameter_list_node, "identifier") 
+
+            param_name = self.tokenizer.peek(0)["value"]
+            self._process(parameter_list_node, "identifier")
+            
+            self.symbol_table.add(param_name, param_type, "arg")
             
             while self.tokenizer.peek(0)["value"] == ",":
                 self._process(parameter_list_node, "symbol", ",")
+
+                token_type = self.tokenizer.peek(0)
+                if token_type["type"] == "keyword":
+                    param_type = token_type["value"]  # int, char, boolean
+                else:
+                    param_type = token_type["value"]  # className
+
+                param_name = self.tokenizer.peek(0)["value"]
                 self.parse_single_type(parameter_list_node)
-                self._process(parameter_list_node, "identifier") 
+
+                self._process(parameter_list_node, "identifier")
+
+                self.symbol_table.add(param_name, param_type, "arg")
    
     def parse_single_type(self, parent_node):
         current_token = self.tokenizer.peek(0)
@@ -93,7 +133,14 @@ class Parser:
         var_dec_node = ParseTreeNode("varDec", None)
         parent_node.add_child(var_dec_node)
         self._process(var_dec_node, "keyword", "var")
-        self.parse_type_and_variables(var_dec_node)
+
+        token_type = self.tokenizer.peek(0)
+        if token_type["type"] == "keyword":
+            var_type = token_type["value"]  # int, char, boolean
+        else:
+            var_type = token_type["value"]  # className
+
+        self.parse_type_and_variables(var_dec_node, var_type, "var")
         self._process(var_dec_node, "symbol", ";")
 
     # STATEMENTS

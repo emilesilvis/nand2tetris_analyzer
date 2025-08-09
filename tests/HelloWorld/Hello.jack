@@ -1,0 +1,21 @@
+class Hello {
+   field String name;
+
+    constructor Hello new(String aname) {
+        let name = aname;
+
+        return this;
+    } 
+
+   method void hello(String apunctuation) {
+      var String punctuation;
+
+      let punctuation = apunctuation;
+
+      do Output.printString("Hello ");
+      do Output.printString(name);
+      do Output.printString(punctuation);
+      do Output.println();
+      return;
+   }
+}
