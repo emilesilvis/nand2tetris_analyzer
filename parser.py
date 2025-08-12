@@ -9,7 +9,6 @@ class Parser:
     # PROGRAM STRUCTURE 
 
     def parse_class(self):
-        # Initialize class symbols (no new_class() method needed)
         class_node = ParseTreeNode("class", None)
         self._process(class_node, "keyword", ["class"])
 

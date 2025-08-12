@@ -1,8 +1,10 @@
 class Hello {
    field String name;
+   field int number;
 
     constructor Hello new(String aname) {
         let name = aname;
+        let number = 7 + (7 * 3);
 
         return this;
     } 
@@ -16,6 +18,7 @@ class Hello {
       do Output.printString(name);
       do Output.printString(punctuation);
       do Output.println();
+      do Output.printInt(number);
       return;
    }
 }
