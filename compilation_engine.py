@@ -10,11 +10,12 @@ class CompilationEngine:
         class_name = [child.value for child in self.parse_tree.children if child.type == "identifier"][0]
 
         for child in self.parse_tree.children:
-            # print(child.type) #DEBUG
             if child.type == "classVarDec":
                 self.compile_class_var_dec(child)
             if child.type == "subroutineDec":
                 self.compile_subroutine(child, class_name)
+            
+        return "\n".join(self.vm_code_generator.vm_code)
     
     def compile_class_var_dec(self, node):
         pass
@@ -30,8 +31,8 @@ class CompilationEngine:
         else:
             local_count = 0
 
-        #TODO: VMCodeWriter
-        print(f"function {class_name}.{identifiers[0]} {local_count}")
+        # print(f"function {class_name}.{identifiers[0]} {local_count}")
+        self.vm_code_generator.write_function(class_name, identifiers[0], local_count)
 
         for child in node.children:
             if child.type == "parameterList":
@@ -96,9 +97,9 @@ class CompilationEngine:
 
         # Compile expression list (arguments)
         if expression_list:
-            num_args = self.compile_expression_list(expression_list)
+            n_args = self.compile_expression_list(expression_list)
         else:
-            num_args = 0
+            n_args = 0
 
         # Generate call
         identifiers = [child.value for child in node.children if child.type == "identifier"]
@@ -106,13 +107,13 @@ class CompilationEngine:
         # Object.method()
         if len(identifiers) == 2:
             object_name, method_name = identifiers
-            print(f"call {object_name}.{method_name} {num_args}") #TODO: VMCodeWriter
+            self.vm_code_generator.write_call(f"{object_name}.{method_name}", n_args)
         # function()
         elif len(identifiers) == 1:
             method_name = identifiers[0]
-            print(f"call {method_name} {num_args}") #TODO: VMCodeWriter
+            self.vm_code_generator.write_call(method_name, n_args)
 
-        print("pop temp 0") #TODO: VMCodeWriter
+        self.vm_code_generator.write_pop("temp", "0")
 
     def compile_return_statement(self, node):
         # return expression or return
@@ -120,8 +121,8 @@ class CompilationEngine:
 
         # return;
         if len(node.children) == 2:
-            print("push constant 0") #TODO: VMCodeWriter
-            print("return") #TODO: VMCodeWriter
+            self.vm_code_generator.write_push("constant", 0)
+            self.vm_code_generator.write_return()
             
         # return exression;
         else:
@@ -150,9 +151,14 @@ class CompilationEngine:
             operations = [child.value for child in node.children if child.type == "symbol"]
 
             self.compile_term(terms[0])
-            for i, op in enumerate(operations):
+            for i, operation in enumerate(operations):
                 self.compile_term(terms[i + 1])
-                print(op) #TODO: VMCodeWriter
+                if operation == "*":
+                    self.vm_code_generator.write_call("Math.multiply", 2)
+                elif operation == "/":
+                    self.vm_code_generator.write_call("Math.divide", 2)
+                else:
+                    self.vm_code_generator.write_operation(operation)
 
     def compile_term(self, node):
         # node.debug_dump()
@@ -161,7 +167,7 @@ class CompilationEngine:
             # if term is a constant c:
                 # output "push c"
             if child.type == "integerConstant":
-                print("push constant " + child.value) #TODO: VMCodeWriter
+                self.vm_code_generator.write_push("constant", child.value)
             
             # if term is "(exp)":
                 # compileExpression(exp)

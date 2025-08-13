@@ -11,16 +11,16 @@ def process_jack_file(jack_file_path):
     tokenizer = Tokenizer(jack_file_contents)
     parser = Parser(tokenizer)
     parse_tree = parser.parse_class()
-    compilation_enginge = CompilationEngine(parse_tree, parser.symbol_table)
+    compilation_engine = CompilationEngine(parse_tree, parser.symbol_table)
 
-    vm_output = compilation_enginge.comile_class()
+    vm_output = compilation_engine.comile_class()
     
     vm_file_path = jack_file_path.replace('.jack', '.vm')
     
-    # with open(xml_file_path, 'w') as f:
-        # f.write(vm_output)
+    with open(vm_file_path, 'w') as f:
+        f.write(vm_output)
     
-    # print(f"Generated: {vm_file_path}")
+    print(f"Generated: {vm_file_path}")
 
 def main():
     if len(sys.argv) != 2:

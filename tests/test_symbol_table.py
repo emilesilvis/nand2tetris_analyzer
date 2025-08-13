@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from tokenizer import Tokenizer
 from parser import Parser
 from symbol_table import SymbolTable
@@ -15,7 +19,8 @@ parser.parse_class()
 print("Class symbols:")
 print(parser.symbol_table.class_symbols)
 assert parser.symbol_table.class_symbols == {
-    "name": ("String", "this", 0)
+    "name": ("String", "this", 0),
+    "number": ("int", "this", 1)  # Add this line
 }
 
 # Test constructor 'new' symbols
