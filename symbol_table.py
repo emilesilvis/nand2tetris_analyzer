@@ -41,4 +41,13 @@ class SymbolTable:
         self.subroutine_symbols[self.current_subroutine]["symbols"][name] = entry
 
     def find(self, name):
-        pass
+        # First check subroutine symbols (local variables and parameters)
+        if (self.current_subroutine and self.current_subroutine in self.subroutine_symbols and name in self.subroutine_symbols[self.current_subroutine]["symbols"]):
+            return self.subroutine_symbols[self.current_subroutine]["symbols"][name]
+        
+        # Then check class symbols (fields and static variables)
+        if name in self.class_symbols:
+            return self.class_symbols[name]
+        
+        # Variable not found
+        return None

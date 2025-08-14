@@ -18,20 +18,20 @@ class CompilationEngine:
         return "\n".join(self.vm_code_generator.vm_code)
     
     def compile_class_var_dec(self, node):
-        pass
+        pass #Symbol table is already built by the parser
 
     def compile_subroutine(self, node, class_name):
         # node.debug_dump()
-        
         identifiers = [child.value for child in node.children if child.type == "identifier"]
+        subroutine_name = identifiers[0]
 
-        current_subroutine = self.symbol_table.current_subroutine
-        if current_subroutine and current_subroutine in self.symbol_table.subroutine_symbols:
-            local_count = self.symbol_table.subroutine_symbols[current_subroutine]["indices"]["local"]
+        self.symbol_table.current_subroutine = subroutine_name
+
+        if subroutine_name in self.symbol_table.subroutine_symbols:
+            local_count = self.symbol_table.subroutine_symbols[subroutine_name]["indices"]["local"]
         else:
             local_count = 0
 
-        # print(f"function {class_name}.{identifiers[0]} {local_count}")
         self.vm_code_generator.write_function(class_name, identifiers[0], local_count)
 
         for child in node.children:
@@ -41,20 +41,18 @@ class CompilationEngine:
                 self.compile_subroutine_body(child)
     
     def compile_parameter_list(self, node):
-        # node.debug_dump()
-        pass
+        pass #Symbol table is already built by the parser
 
     def compile_subroutine_body(self, node):
         # node.debug_dump()
         for child in node.children:
             if child.type == "varDec":
-                self.compile_variable_declaration(child)
+                self.compile_subroutine_variable_declaration(child)
             if child.type == "statements":
                 self.compile_statements(child)
 
-    def compile_variable_declaration(self, node):
-        # node.debug_dump()
-        pass
+    def compile_subroutine_variable_declaration(self, node):
+        pass #Symbol table is already built by the parser
 
     def compile_statements(self, node):
         # node.debug_dump()
@@ -73,16 +71,23 @@ class CompilationEngine:
     def compile_let_statement(self, node):
         # node.debug_dump()
         for child in node.children:
+            if child.type == "identifier":
+                var_name = child.value
             if child.type == "expression":
                 self.compile_expression(child)
 
+        symbol_info = self.symbol_table.find(var_name)
+        var_type, vm_segment, vm_index = symbol_info
+        self.vm_code_generator.write_pop(vm_segment, vm_index)
+
     def compile_if_statement(self, node):
         # node.debug_dump()
+        print("NOT IMPLEMENTED: compile_if_statement")
         pass
-
 
     def compile_while_statement(self, node):
         # node.debug_dump()
+        print("NOT IMPLEMENTED: compile_while_statement")
         pass
 
     def compile_do_statement(self, node):
@@ -126,10 +131,11 @@ class CompilationEngine:
             
         # return exression;
         else:
+            print("NOT IMPLEMENTED: return expression;")
             pass
 
     def compile_expression(self, node):
-        # print(node)
+        # node.debug_dump()
 
         # if exp is term:
         #   compileTerm(term)
@@ -174,20 +180,40 @@ class CompilationEngine:
             elif child.type == "expression":
                 self.compile_expression(child)
             
-            # TODO: Implement this pattern
+            # TODO: Implement this pattern <- YOU ARE HERE FOR MEMORY.PEEK(8000)
             # if term is "f (exp1, exp2, ...)":
                 # compileExpression(exp1)
                 # compileExpression(exp2)
                 # ...
                 # compileExpression(expn)
                 # output "call f n”
+            elif len(node.children) > 2 and node.children[0].type == "identifier" and node.children[1].value == ".":
+                class_name = node.children[0].value
+                expression_list = node.children[4]
+                method_name = node.children[2].value
+                n_args = self.compile_expression_list(expression_list)
+                self.vm_code_generator.write_call(f"{class_name}.{method_name}", n_args)
+                break
 
-        # if term is a variable var:
-            # output "push var"
-        # if term is "unaryOp term":
-            # compileTerm(term)
-            # output "unaryOp"
+            # TODO: Need to implement this for pushing variables to stack
+            # if term is a variable var:
+                            # output "push var"
+            elif child.type == "identifier":
+                var_name = child.value
+                symbol_info = self.symbol_table.find(var_name)
+                var_type, vm_segment, vm_index = symbol_info
+                self.vm_code_generator.write_push(vm_segment, vm_index)
 
+            # if term is "unaryOp term":
+                # compileTerm(term)
+                # output "unaryOp"
+            elif child.type == "symbol" and child.value in ["-", "~"]:
+                term = node.children[index + 1]
+                self.compile_term(term)
+                if child.value == "-":
+                    self.vm_code_generator.write_operation("neg")
+                elif child.value == "~":
+                    self.vm_code_generator.write_operation("not")
 
     def compile_expression_list(self, node):
         # node.debug_dump()

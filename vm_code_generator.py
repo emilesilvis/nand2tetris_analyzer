@@ -6,7 +6,9 @@ class VMCodeGenerator:
         "|": "or",
         "<": "lt",
         ">": "gt",
-        "=": "eq"
+        "=": "eq",
+        "neg": "neg",
+        "not": "not"
     }
 
     def __init__(self):
