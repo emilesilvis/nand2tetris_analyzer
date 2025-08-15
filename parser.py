@@ -124,9 +124,9 @@ class Parser:
                 else:
                     param_type = token_type["value"]  # className
 
-                param_name = self.tokenizer.peek(0)["value"]
                 self.parse_single_type(parameter_list_node)
 
+                param_name = self.tokenizer.peek(0)["value"]
                 self._process(parameter_list_node, "identifier")
 
                 self.symbol_table.add_subroutine_symbol(param_name, param_type, "arg")

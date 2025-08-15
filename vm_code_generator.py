@@ -16,29 +16,35 @@ class VMCodeGenerator:
 
     def write_push(self, segment, index):
         self.vm_code.append(
-            f"push {segment} {index}"
+            f"    push {segment} {index}"
         )
 
     def write_pop(self, segment, index):
         self.vm_code.append(
-            f"pop {segment} {index}"
+            f"    pop {segment} {index}"
         )
 
     def write_operation(self, operation):
-        self.vm_code.append(self.JACK_TO_VM_OPS[operation])
+        self.vm_code.append("    " + self.JACK_TO_VM_OPS[operation])
 
     def write_label(self, label):
-        pass
+        self.vm_code.append(
+            f"label {label}"
+        )
 
     def write_goto(self, label):
-        pass
+        self.vm_code.append(
+            f"    goto {label}"
+        )
 
     def write_if(self, label):
-        pass
+        self.vm_code.append(
+            f"    if-goto {label}"
+        )
 
     def write_call(self, name, n_args):
         self.vm_code.append(
-            f"call {name} {n_args}"
+            f"    call {name} {n_args}"
         )
 
     def write_function(self, class_name, function_name, n_vars):
@@ -47,4 +53,4 @@ class VMCodeGenerator:
         )
     
     def write_return(self):
-        self.vm_code.append("return")
+        self.vm_code.append("    return")
