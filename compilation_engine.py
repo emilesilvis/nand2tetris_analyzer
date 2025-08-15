@@ -238,19 +238,12 @@ class CompilationEngine:
     def compile_do_statement(self, node):
         # [object.]method(expressionList)
 
-        # TODO: Should some of this logic not move to comple_expression? 
         expression_list = None
         for child in node.children:
             if child.type == "expressionList":
                 expression_list = child
                 break
-
-        # Compile expression list (arguments)
-        if expression_list:
-            n_args = self.compile_expression_list(expression_list)
-        else:
-            n_args = 0
-
+        
         # Generate call
         identifiers = [child.value for child in node.children if child.type == "identifier"]
 
@@ -262,11 +255,22 @@ class CompilationEngine:
             # object instance
             if symbol_info:
                 var_type, vm_segment, vm_index = symbol_info
+                # Push object reference first
                 self.vm_code_generator.write_push(vm_segment, vm_index)
+                # Then compile arguments
+                if expression_list:
+                    n_args = self.compile_expression_list(expression_list)
+                else:
+                    n_args = 0
                 n_args += 1 # Add 1 for 'this' argument
                 self.vm_code_generator.write_call(f"{var_type}.{method_name}", n_args)
             # class name
             else:
+                # Compile arguments
+                if expression_list:
+                    n_args = self.compile_expression_list(expression_list)
+                else:
+                    n_args = 0
                 self.vm_code_generator.write_call(f"{object_name}.{method_name}", n_args)
         
         # function()
@@ -275,11 +279,21 @@ class CompilationEngine:
 
             # Check if method call on 'this' object
             if method_name in self.symbol_table.subroutine_symbols:
-                self.vm_code_generator.write_push("pointer", 0) # Push 'this' pointer - will become argument 0 due to stack LIFO order
+                # Push 'this' pointer first
+                self.vm_code_generator.write_push("pointer", 0)
+                # Then compile arguments
+                if expression_list:
+                    n_args = self.compile_expression_list(expression_list)
+                else:
+                    n_args = 0
                 n_args += 1
                 self.vm_code_generator.write_call(f"{self.class_name}.{method_name}", n_args)
             else:
             # Function call
+                if expression_list:
+                    n_args = self.compile_expression_list(expression_list)
+                else:
+                    n_args = 0
                 self.vm_code_generator.write_call(method_name, n_args)
 
         self.vm_code_generator.write_pop("temp", 0)
@@ -375,11 +389,30 @@ class CompilationEngine:
                 # compileExpression(expn)
                 # output "call f n”
             elif len(node.children) > 2 and node.children[0].type == "identifier" and node.children[1].value == ".":
-                class_name = node.children[0].value
-                expression_list = node.children[4]
+                object_name = node.children[0].value
                 method_name = node.children[2].value
-                n_args = self.compile_expression_list(expression_list)
-                self.vm_code_generator.write_call(f"{class_name}.{method_name}", n_args)
+                expression_list = node.children[4]
+                
+                # Check if it's a method call on 'this' (current object)
+                if object_name == "this":
+                    # Push 'this' pointer first
+                    self.vm_code_generator.write_push("pointer", 0)
+                    n_args = self.compile_expression_list(expression_list)
+                    n_args += 1  # Add 1 for 'this' argument
+                    self.vm_code_generator.write_call(f"{self.class_name}.{method_name}", n_args)
+                else:
+                    # Check if object_name is a variable (object instance)
+                    symbol_info = self.symbol_table.find(object_name)
+                    if symbol_info:
+                        var_type, vm_segment, vm_index = symbol_info
+                        self.vm_code_generator.write_push(vm_segment, vm_index)
+                        n_args = self.compile_expression_list(expression_list)
+                        n_args += 1
+                        self.vm_code_generator.write_call(f"{var_type}.{method_name}", n_args)
+                    else:
+                        # Class function call
+                        n_args = self.compile_expression_list(expression_list)
+                        self.vm_code_generator.write_call(f"{object_name}.{method_name}", n_args)
                 break
         
             # Array access: identifier[expression]
