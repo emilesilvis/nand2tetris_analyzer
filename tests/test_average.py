@@ -7,8 +7,8 @@ from tokenizer import Tokenizer
 from parser import Parser
 from compilation_engine import CompilationEngine
 
-# Find all Jack files in the Square directory
-jack_files = glob.glob('tests/Square/*.jack')
+# Find all Jack files in the Average directory
+jack_files = glob.glob('tests/Average/*.jack')
 
 tests_total = 0
 
@@ -40,4 +40,4 @@ for jack_file in sorted(jack_files):
         print(f"No comparison file found for {os.path.basename(jack_file)}")
 
 if tests_total > 0:
-    print("All Square tests passed!")
+    print("All Average tests passed!")

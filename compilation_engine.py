@@ -53,7 +53,7 @@ class CompilationEngine:
             field_count = self.symbol_table.class_indices["this"]
             self.vm_code_generator.write_push("constant", field_count)
             self.vm_code_generator.write_call("Memory.alloc", 1)
-            self.vm_code_generator.write_pop("pointer", 0)
+            self.vm_code_generator.write_pop("pointer", 0) # Memory.alloc pushed base address to stack, so we pop it to pointer 0, so this can reflect it
         
         for child in node.children:
             if child.type == "parameterList":
@@ -91,16 +91,65 @@ class CompilationEngine:
     
     def compile_let_statement(self, node):
         # node.debug_dump()
-        for child in node.children:
-            if child.type == "identifier":
-                var_name = child.value
-            if child.type == "expression":
-                self.compile_expression(child)
+        array_index_expression = None
+        value_expression = None
+        is_array_assignment = False
 
-        symbol_info = self.symbol_table.find(var_name)
-        if symbol_info:
+        # Check if it's array assignment by looking for '[' symbol
+        for child in node.children:
+            if child.type == "symbol" and child.value == "[":
+                is_array_assignment = True
+                break
+        
+        if is_array_assignment:
+            # Array assignment: let a[i] = value
+            expressions = []
+            for child in node.children:
+                if child.type == "identifier":
+                    var_name = child.value
+                elif child.type == "expression":
+                    expressions.append(child)
+
+            array_index_expression = expressions[0]
+            value_expression = expressions[1]
+
+            symbol_info = self.symbol_table.find(var_name)
             var_type, vm_segment, vm_index = symbol_info
-            self.vm_code_generator.write_pop(vm_segment, vm_index)
+
+            # Push array index
+            self.compile_expression(array_index_expression)
+
+            # Push array base address
+            self.vm_code_generator.write_push(vm_segment, vm_index)
+
+            # Calculate element address
+            self.vm_code_generator.write_operation("+")
+
+            # Compile value expression
+            self.compile_expression(value_expression)
+    
+            # Store value temporarily
+            self.vm_code_generator.write_pop("temp", 0)
+
+            # Set that pointer to element address
+            self.vm_code_generator.write_pop("pointer", 1)
+
+            # Get value back and store in array element
+            self.vm_code_generator.write_push("temp", 0)
+            self.vm_code_generator.write_pop("that", 0)
+
+        else:   
+            # Regular assignment: let var = value
+            for child in node.children:
+                if child.type == "identifier":
+                    var_name = child.value
+                if child.type == "expression":
+                    self.compile_expression(child)
+
+            symbol_info = self.symbol_table.find(var_name)
+            if symbol_info:
+                var_type, vm_segment, vm_index = symbol_info
+                self.vm_code_generator.write_pop(vm_segment, vm_index) # Compile(expressions) pushed results onto the stack, this pops it into wherever the object nedes it
 
     def compile_if_statement(self, node):
         # node.debug_dump()
@@ -293,6 +342,15 @@ class CompilationEngine:
                 # output "push c"
             if child.type == "integerConstant":
                 self.vm_code_generator.write_push("constant", child.value)
+            
+            elif child.type == "stringConstant":
+                string = child.value
+                self.vm_code_generator.write_push("constant", len(string))
+                self.vm_code_generator.write_call("String.new", 1)
+                for char in string:
+                    ascii_value = ord(char)
+                    self.vm_code_generator.write_push("constant", ascii_value)
+                    self.vm_code_generator.write_call("String.appendChar", 2)
 
             elif child.type == "keyword":
                 if child.value == "true":
@@ -322,6 +380,25 @@ class CompilationEngine:
                 method_name = node.children[2].value
                 n_args = self.compile_expression_list(expression_list)
                 self.vm_code_generator.write_call(f"{class_name}.{method_name}", n_args)
+                break
+        
+            # Array access: identifier[expression]
+            elif (index + 2 < len(node.children) and child.type == "identifier" and index + 1 < len(node.children) and node.children[index + 1].value == "["):
+                array_name = child.value
+                array_index_expression = node.children[index + 2]
+
+                # Push array index
+                self.compile_expression(array_index_expression)
+
+                # Push array base address
+                symbol_info = self.symbol_table.find(array_name)
+                var_type, vm_segment, vm_index = symbol_info
+                self.vm_code_generator.write_push(vm_segment, vm_index)
+
+                # Calculate element address and access
+                self.vm_code_generator.write_operation("+")
+                self.vm_code_generator.write_pop("pointer", 1) # Set that pointer
+                self.vm_code_generator.write_push("that", 0) # Get array element
                 break
 
             # if term is a variable var:
