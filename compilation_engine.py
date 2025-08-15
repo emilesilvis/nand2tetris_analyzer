@@ -8,7 +8,7 @@ class CompilationEngine:
         self.label_count = 0
         self.class_name = None
     
-    def comile_class(self):
+    def compile_class(self):
         self.class_name = [child.value for child in self.parse_tree.children if child.type == "identifier"][0]
 
         for child in self.parse_tree.children:
@@ -24,8 +24,17 @@ class CompilationEngine:
 
     def compile_subroutine(self, node):
         # node.debug_dump()
+        keywords = [child.value for child in node.children if child.type == "keyword"]
+        subroutine_type = keywords[0] 
+
         identifiers = [child.value for child in node.children if child.type == "identifier"]
-        subroutine_name = identifiers[0]
+        
+        # For void functions/methods: only one identifier (the subroutine name)
+        # For constructors and typed functions: two identifiers (return type, then subroutine name)
+        if len(identifiers) == 1:
+            subroutine_name = identifiers[0]
+        else:
+            subroutine_name = identifiers[1]
 
         self.symbol_table.current_subroutine = subroutine_name
 
@@ -34,8 +43,18 @@ class CompilationEngine:
         else:
             local_count = 0
 
-        self.vm_code_generator.write_function(self.class_name, identifiers[0], local_count)
+        self.vm_code_generator.write_function(self.class_name, subroutine_name, local_count)
 
+        if subroutine_type == "method":
+            self.vm_code_generator.write_push("argument", 0)
+            self.vm_code_generator.write_pop("pointer", 0)
+
+        elif subroutine_type == "constructor":
+            field_count = self.symbol_table.class_indices["this"]
+            self.vm_code_generator.write_push("constant", field_count)
+            self.vm_code_generator.write_call("Memory.alloc", 1)
+            self.vm_code_generator.write_pop("pointer", 0)
+        
         for child in node.children:
             if child.type == "parameterList":
                 self.compile_parameter_list(child)
@@ -118,8 +137,8 @@ class CompilationEngine:
         # if-goto FALSE
         self.vm_code_generator.write_if(false_label)
 
-        # compile true statements
-        self.compile_statements(true_statements)
+        if true_statements:
+            self.compile_statements(true_statements)
 
         # goto END
         self.vm_code_generator.write_goto(end_label)
@@ -127,8 +146,8 @@ class CompilationEngine:
         # label FALSE
         self.vm_code_generator.write_label(false_label)
 
-        # compile false statements
-        self.compile_statements(false_statements)
+        if false_statements:
+            self.compile_statements(false_statements)
 
         # label END
         self.vm_code_generator.write_label(end_label)
@@ -189,11 +208,30 @@ class CompilationEngine:
         # Object.method()
         if len(identifiers) == 2:
             object_name, method_name = identifiers
-            self.vm_code_generator.write_call(f"{object_name}.{method_name}", n_args)
+
+            symbol_info = self.symbol_table.find(object_name)
+            # object instance
+            if symbol_info:
+                var_type, vm_segment, vm_index = symbol_info
+                self.vm_code_generator.write_push(vm_segment, vm_index)
+                n_args += 1 # Add 1 for 'this' argument
+                self.vm_code_generator.write_call(f"{var_type}.{method_name}", n_args)
+            # class name
+            else:
+                self.vm_code_generator.write_call(f"{object_name}.{method_name}", n_args)
+        
         # function()
         elif len(identifiers) == 1:
             method_name = identifiers[0]
-            self.vm_code_generator.write_call(method_name, n_args)
+
+            # Check if method call on 'this' object
+            if method_name in self.symbol_table.subroutine_symbols:
+                self.vm_code_generator.write_push("pointer", 0) # Push 'this' pointer - will become argument 0 due to stack LIFO order
+                n_args += 1
+                self.vm_code_generator.write_call(f"{self.class_name}.{method_name}", n_args)
+            else:
+            # Function call
+                self.vm_code_generator.write_call(method_name, n_args)
 
         self.vm_code_generator.write_pop("temp", 0)
 

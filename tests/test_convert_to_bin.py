@@ -14,7 +14,7 @@ parser = Parser(tokenizer)
 parse_tree = parser.parse_class()
 compilation_engine = CompilationEngine(parse_tree, parser.symbol_table)
 
-vm_output = compilation_engine.comile_class()
+vm_output = compilation_engine.compile_class()
 
 with open('tests/ConvertToBin/Main.vm_compare', 'r') as f:
     expected_vm = f.read()

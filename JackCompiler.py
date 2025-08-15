@@ -13,7 +13,7 @@ def process_jack_file(jack_file_path):
     parse_tree = parser.parse_class()
     compilation_engine = CompilationEngine(parse_tree, parser.symbol_table)
 
-    vm_output = compilation_engine.comile_class()
+    vm_output = compilation_engine.compile_class()
     
     vm_file_path = jack_file_path.replace('.jack', '.vm')
     
