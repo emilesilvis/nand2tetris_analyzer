@@ -6,7 +6,7 @@ from tokenizer import Tokenizer
 from parser import Parser
 from compilation_engine import CompilationEngine
 
-with open('tests/Seven/Main.jack', 'r') as f:
+with open('tests/ConvertToBin/Main.jack', 'r') as f:
     source = f.read()
 
 tokenizer = Tokenizer(source)
@@ -16,11 +16,11 @@ compilation_engine = CompilationEngine(parse_tree, parser.symbol_table)
 
 vm_output = compilation_engine.comile_class()
 
-with open('tests/Seven/Main.vm_compare', 'r') as f:
+with open('tests/ConvertToBin/Main.vm_compare', 'r') as f:
     expected_vm = f.read()
 
 generated_lines = [line.strip() for line in vm_output.strip().split('\n') if line.strip()]
 expected_lines = [line.strip() for line in expected_vm.strip().split('\n') if line.strip()]
 
 assert generated_lines == expected_lines
-print("Seven test passed!")
+print("ConvertToBin test passed!")
